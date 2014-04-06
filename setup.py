@@ -17,5 +17,5 @@ setup(name='juju-slayer',
       install_requires=["PyYAML", "requests", "SoftLayer"],
       entry_points={
           "console_scripts": [
-              'juju-slayer = juju_slayer.cli:main']},
+              'juju-sl = juju_slayer.cli:main']},
       )
