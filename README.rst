@@ -51,8 +51,8 @@ provider. Configuring your softlayer api keys, adding an
 environment to juju's config file, and setting up an ssh key for usage
 on softlayer machines.
 
-DO API Keys
-+++++++++++
+SoftLayer API Keys
+++++++++++++++++++
 
 A SoftLayer account is a pre-requisite, If you don't have a
 Softlayer account you can sign up `here`_.
@@ -120,8 +120,8 @@ Now we can bootstrap our softlayer environment::
 Which will create a machine with 2Gb of ram in the san jose data center.
 
 All machines created by this plugin will have the juju environment
-name as a prefix for their hostname if your looking at the DO
-control panel.
+name as a prefix for their hostname if your looking at the softlayer
+control panel and a suffix/domain of juju.ubuntu.
 
 After our environment is bootstrapped we can add additional machines
 to it via the the add-machine command, for example the following will
