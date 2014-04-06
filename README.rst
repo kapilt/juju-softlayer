@@ -115,9 +115,9 @@ several ways to do this, either of the following will do the trick::
 
 Now we can bootstrap our softlayer environment::
 
-  $ juju docean bootstrap --constraints="mem=2g, region=nyc1"
+  $ juju slayer bootstrap --constraints="mem=2g, region=sjc"
 
-Which will create a machine with 2Gb of ram in the nyc1 data center.
+Which will create a machine with 2Gb of ram in the san jose data center.
 
 All machines created by this plugin will have the juju environment
 name as a prefix for their hostname if your looking at the DO
@@ -127,7 +127,7 @@ After our environment is bootstrapped we can add additional machines
 to it via the the add-machine command, for example the following will
 add 3 machines with 2Gb each::
 
-  $ juju docean add-machine -n 2 --constraints="mem=2G, region=nyc2"
+  $ juju slayer add-machine -n 2 --constraints="mem=2G, region=sjc"
   $ juju status
 
   environment: softlayer
@@ -178,7 +178,7 @@ these workloads together via relations like lego blocks::
   $ juju add-relation wordpress mysql
 
 We can terminate allocated machines by their machine id. By default with the
-docean plugin, machines are forcibly terminated which will also terminate any
+softlayer plugin, machines are forcibly terminated which will also terminate any
 service units on those machines::
 
   $ juju slayer terminate-machine 1 2
