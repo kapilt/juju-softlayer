@@ -39,6 +39,8 @@ SUFFIX_SIZES = {
     "t": 1024 * 1024,
     "p": 1024 * 1024 * 1024}
 
+VALID_CONSTRAINTS = set(['region', 'cpu-cores', 'root-disk', 'mem', 'arch'])
+
 
 def converted_size(s):
     q = s[-1].lower()
@@ -64,7 +66,8 @@ def parse_constraints(constraints):
     unknown = set(c).difference(
         set(['region', 'cpu-cores', 'root-disk', 'mem', 'arch']))
     if unknown:
-        raise ConstraintError("Unknown constraints %s" % (" ".join(unknown)))
+        raise ConstraintError("Unknown constraints %s valid:%s" % (
+            " ".join(unknown), ", ".join(VALID_CONSTRAINTS)))
 
     if 'mem' in c:
         d = c.pop('mem')
@@ -95,11 +98,11 @@ def parse_constraints(constraints):
         d = c.pop('cpu-cores')
         if not d.isdigit():
             raise ConstraintError(
-                "Unknown cpu-cores size %s valid: %s" % d, ", ".join(CPUS))
+                "Unknown cpu-cores value %s valid: %s" % d, ", ".join(CPUS))
         d = int(d)
         if not d in CPUS:
             raise ConstraintError(
-                "Unknown cpu-cores size %s valid: %s" % d, ", ".join(CPUS))
+                "Unknown cpu-cores value %s valid: %s" % d, ", ".join(CPUS))
         c['cpus'] = d
     else:
         c['cpus'] = 1

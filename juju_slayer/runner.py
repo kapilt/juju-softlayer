@@ -12,7 +12,7 @@ log = logging.getLogger("juju.slayer")
 
 class Runner(object):
 
-    DEFAULT_NUM_RUNNER = 4
+    DEFAULT_NUM_RUNNER = 5
 
     def __init__(self):
         self.jobs = Queue()

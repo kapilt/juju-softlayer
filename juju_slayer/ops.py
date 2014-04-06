@@ -33,7 +33,6 @@ class MachineAdd(MachineOp):
         self.verify_ssh(instance)
         # Sigh.. install curl
         if self.params.get('os_code', '') == 'UBUNTU_12_64':
-            log.debug("Updating instance %s" % instance.name)
             self.update_image(instance)
         return instance
 
