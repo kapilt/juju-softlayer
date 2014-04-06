@@ -87,7 +87,7 @@ Keys can be verified with::
 By default all keys in the softlayer account will be added to launched
 nodes, so no explict user configuration is needed. A specific key to
 utilize can be specified with the environment variable
-SOFTLAYER_SSH_KEY="key_spec" where key_spec is either the id of the
+SL_SSH_KEY="key_spec" where key_spec is either the id of the
 key in the from the command line, or the name of the key as found in
 softlayer control panel (https://manage.softlayer.com/Security/sshKeys)
 
