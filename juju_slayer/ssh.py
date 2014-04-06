@@ -27,7 +27,7 @@ def check_ssh(host, user="root"):
 def update_instance(host, user="root"):
     base = list(SSH_CMD) + ["%s@%s" % (user, host)]
     subprocess.check_output(
-        base + ["apt-get", "update"], stderr=subprocess.STDOUT)
+        base + ["apt-get", "install", "-y", "curl"], stderr=subprocess.STDOUT)
 # Don't really need to update the image, just the package lists.
 #    subprocess.check_output(base + [
 #        'DEBIAN_FRONTEND=noninteractive',

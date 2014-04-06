@@ -7,9 +7,23 @@ from juju_slayer.exceptions import ConfigError
 from juju_slayer import provider
 
 
+class EmptyOptions(object):
+
+    __slots__ = ()
+
+    upload_tools = False
+    num_machines = 0
+    environment = None
+    series = None
+    constraints = ""
+    verbose = True
+
+
 class Config(object):
 
-    def __init__(self, options):
+    def __init__(self, options=None):
+        if options is None:
+            options = EmptyOptions()
         self.options = options
 
     def connect_provider(self):
@@ -29,6 +43,10 @@ class Config(object):
     @property
     def verbose(self):
         return self.options.verbose
+
+    @property
+    def domain(self):
+        return "juju.ubuntu"
 
     @property
     def constraints(self):

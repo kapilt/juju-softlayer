@@ -85,6 +85,7 @@ def main():
         datefmt="%Y/%m/%d %H:%M.%S",
         format="%(asctime)s:%(levelname)s %(message)s")
     logging.getLogger('requests').setLevel(level=logging.WARNING)
+    logging.getLogger('SoftLayer.transports').setLevel(level=logging.WARNING)
 
     try:
         config.validate()

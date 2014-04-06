@@ -12,7 +12,7 @@ from juju_slayer.commands import (
     DestroyEnvironment)
 
 
-from juju_slayer.client import SSHKey, Droplet
+from juju_slayer.provider import SSHKey, Instance
 from juju_slayer.exceptions import ConfigError
 from juju_slayer.tests.base import Base
 
@@ -26,7 +26,7 @@ class CommandBase(Base):
 
     def setup_env(self, conf=None):
         self.provider.get_ssh_keys.return_value = [
-            SSHKey.from_dict({'id': 1, 'name': 'abc'})]
+            SSHKey({'id': 1, 'label': 'abc'})]
         self.config.series = "precise"
         with tempfile.NamedTemporaryFile(delete=False) as f:
             self.config.get_env_conf.return_value = f.name
@@ -50,10 +50,10 @@ class BaseCommandTest(CommandBase):
 
     def test_get_ssh_keys(self):
         self.provider.get_ssh_keys.return_value = [
-            SSHKey.from_dict({'id': 1, 'name': 'abc'}),
-            SSHKey.from_dict({'id': 32, 'name': 'bcd'})]
+            SSHKey({'id': 1, 'label': 'abc'}),
+            SSHKey({'id': 32, 'label': 'bcd'})]
         self.assertEqual(
-            self.cmd.get_do_ssh_keys(),
+            self.cmd.get_slayer_ssh_keys(),
             [1, 32])
 
     def test_check_preconditions_okay(self):
@@ -63,7 +63,7 @@ class BaseCommandTest(CommandBase):
     def test_check_preconditions_host_exist(self):
         self.setup_env({
             'environments': {
-                'slayer': {
+                'softlayer': {
                     'type': 'null',
                     'bootstrap-host': '1.1.1.1'}}})
         try:
@@ -76,7 +76,7 @@ class BaseCommandTest(CommandBase):
     def test_check_preconditions_host_invalid_provider(self):
         self.setup_env({
             'environments': {
-                'slayer': {
+                'softlayer': {
                     'type': 'ec2',
                     'bootstrap-host': None}}})
         try:
@@ -97,7 +97,7 @@ class BaseCommandTest(CommandBase):
             self.cmd.check_preconditions()
         except ConfigError, e:
             self.assertIn(
-                "Environment 'slayer' not in environments.yaml", str(e))
+                "Environment 'softlayer' not in environments.yaml", str(e))
 
 
 class BootstrapTest(CommandBase):
@@ -115,15 +115,14 @@ class BootstrapTest(CommandBase):
         mock_ssh.check_ssh.return_value = True
         mock_ssh.update_instance.return_value = True
 
-        self.provider.get_instance.return_value = Droplet.from_dict(dict(
+        self.provider.get_instance.return_value = Instance(dict(
             id=2121,
-            name='slayer-13290123j13',
-            ip_address="10.0.2.1"))
+            hostname='slayer-13290123j13',
+            primaryIpAddress="10.0.2.1"))
         self.cmd.run()
 
         mock_ssh.check_ssh.assert_called_once_with('10.0.2.1')
         mock_ssh.update_instance.assert_called_once_with('10.0.2.1')
-
     # TODO
     # test existing named host / ie precondition check for live env
     # test for jenv bootstrap (also in test_environment.py)
@@ -155,10 +154,12 @@ class TerminateMachineTest(CommandBase):
                     'instance-id': 'manual:ip_address'}
             }}
         self.provider.get_instances.return_value = [
-            Droplet.from_dict(dict(
-                id=221, name="slayer-123123", ip_address="10.0.1.23")),
-            Droplet.from_dict(dict(
-                id=258, name="slayer-209123", ip_address="10.0.1.103"))]
+            Instance(dict(
+                id=221, hostname="slayer-123123",
+                primaryIpAddress="10.0.1.23")),
+            Instance(dict(
+                id=258, hostname="slayer-209123",
+                primaryIpAddress="10.0.1.103"))]
         self.config.options.machines = ["1"]
         self.cmd.run()
         self.provider.terminate_instance.assert_called_once_with(221)
@@ -183,10 +184,12 @@ class DestroyEnvironmentTest(CommandBase):
                     'instance-id': 'manual:ip_address'}
             }}
         self.provider.get_instances.return_value = [
-            Droplet.from_dict(dict(
-                id=221, name="slayer-123123", ip_address="10.0.1.23")),
-            Droplet.from_dict(dict(
-                id=258, name="slayer-209123", ip_address="10.0.1.25"))]
+            Instance(dict(
+                id=221, hostname="slayer-123123",
+                primaryIpAddress="10.0.1.23")),
+            Instance(dict(
+                id=258, hostname="slayer-209123",
+                primaryIpAddress="10.0.1.25"))]
 
         # Destroy Env has a sleep / mock it out.
         mock_time.sleep.return_value = None

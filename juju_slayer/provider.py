@@ -1,9 +1,10 @@
 import logging
 import os
 import time
+import itertools
 
 from juju_slayer.exceptions import ConfigError, ProviderError
-from SoftLayer import Client, SshManager, CCIManager, config as client_conf
+from SoftLayer import Client, SshKeyManager, CCIManager, config as client_conf
 
 log = logging.getLogger("juju.slayer")
 
@@ -20,9 +21,41 @@ def validate():
 class SSHKey(dict):
     __slots__ = ()
 
+    @property
+    def id(self):
+        return self['id']
+
+    @property
+    def name(self):
+        return self['label']
+
 
 class Instance(dict):
     __slots__ = ()
+
+    @property
+    def id(self):
+        return self['id']
+
+    @property
+    def cpus(self):
+        return self['maxCpu']
+
+    @property
+    def memory(self):
+        return self['maxMemory']
+
+    @property
+    def name(self):
+        return self['hostname']
+
+    @property
+    def status(self):
+        return self['powerState']['name']
+
+    @property
+    def ip_address(self):
+        return self.get('primaryIpAddress', '')
 
 
 class SoftLayer(object):
@@ -34,7 +67,7 @@ class SoftLayer(object):
                 auth=self.config['auth'],
                 endpoint_url=self.config['endpoint_url'])
         self.client = client
-        self.ssh = SshManager(client)
+        self.ssh = SshKeyManager(client)
         self.instances = CCIManager(client)
 
     @classmethod
@@ -47,61 +80,42 @@ class SoftLayer(object):
         return provider_conf
 
     def get_ssh_keys(self):
-        keys = self.ssh.list_keys()
+        keys = map(SSHKey, self.ssh.list_keys())
         if 'ssh_key' in self.config:
-            keys = [k for k in keys if k['label'] == self.config['ssh_key']]
+            keys = [k for k in keys if k.name == self.config['ssh_key']]
         log.debug(
-            "Using SL ssh keys: %s" % ", ".join(k['label'] for k in keys))
+            "Using SoftLayer ssh keys: %s" % ", ".join(k.name for k in keys))
         return keys
 
     def get_instances(self):
-        return self.instances.list_instances()
+        return map(Instance, self.instances.list_instances())
 
     def get_instance(self, instance_id):
-        return self.client.get_instance(instance_id)
+        return Instance(self.instances.get_instance(instance_id))
 
     def launch_instance(self, params):
-        raise NotImplementedError()
-        if not 'virtio' in params:
-            params['virtio'] = True
-        if not 'private_networking' in params:
-            params['private_networking'] = True
-        if 'ssh_key_ids' in params:
-            params['ssh_key_ids'] = map(str, params['ssh_key_ids'])
-        return self.client.create_droplet(**params)
+        return Instance(self.instances.create_instance(**params))
 
     def terminate_instance(self, instance_id):
-        self.client.cancel_instance(instance_id)
+        self.instances.cancel_instance(instance_id)
 
     def wait_on(self, instance):
-        return self._wait_on(instance.event_id, instance.name)
+        # Wait up to 5 minutes, in 30 sec increments
+        result = self._wait_on_instance(instance, 30, 10)
+        if not result:
+            raise ProviderError("Could not provision instance before timeout")
+        return result
 
-    def _wait_on(self, event, name, event_type=1):
-        loop_count = 0
-        while 1:
-            time.sleep(8)  # Takes on average 1m for a do instance.
-            result = self.client.request("/events/%s" % event)
-            event_data = result['event']
-            if not event_data['event_type_id'] == event_type:
-                raise ValueError(
-                    "Waiting on invalid event type: %d for %s",
-                    event_data['event_type_id'], name)
-            elif event_data['action_status'] == 'done':
-                log.debug("Instance %s ready", name)
-                return
-            elif result['status'] != "OK":
-                log.warning("Unknown provider error %s", result)
-            else:
-                log.debug("Waiting on instance %s %s%%",
-                          name, event_data.get('percentage') or '0')
-            if loop_count > 8:
-                # Its taking a long while (2m+), give the user some
-                # diagnostics if in debug mode.
-                log.debug("Diagnostics on instance %s event %s",
-                          name, result)
-            if loop_count > 25:
-                # After 3.5m for instance, just bail as provider error.
-                raise ProviderError(
-                    "Failed to get running instance %s event: %s" % (
-                        name, result))
-            loop_count += 1
+    def _wait_on_instance(self, instance, limit, delay=10):
+        # Redo cci.wait to give user feedback in verbose mode.
+        for count, new_instance in enumerate(itertools.repeat(instance.id)):
+            instance = self.get_instance(new_instance)
+            if not instance.get('activeTransaction', {}).get('id') and \
+               instance.get('provisionDate'):
+                return True
+            if count >= limit:
+                return False
+            if count and count % 3 == 0:
+                log.debug("Waiting for instance:%s ip:%s waited:%ds" % (
+                    instance.name, instance.ip_address, count*delay))
+            time.sleep(delay)

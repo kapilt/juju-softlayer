@@ -208,10 +208,11 @@ This plugin accepts the standard `juju constraints`_
 
 Additionally it supports the following provider specific constraints.
 
-  - 'region' to denote the digital ocean data center to utilize. All digitalocean
+  - 'region' to denote one softlayer's data center to utilize. All softlayer
     data centers are supported and various short hand aliases are defined. ie. valid
-    values include ams2, nyc1, nyc2, sfo1, sg1. The plugin defaults to nyc2.
+    values include ams01, dal01, dal05, dal06, sea01, sng01, sjc01, wdc01. The 
+    plugin defaults to leaving it empty which auto selects first available.
 
 
-.. _here: https://www.digitalocean.com/?refcode=5df4b80c84c8
+.. _here: https://www.softlayer.com/virtual-server
 .. _juju constraints: https://juju.ubuntu.com/docs/reference-constraints.html

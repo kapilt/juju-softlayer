@@ -7,8 +7,6 @@ import socket
 import os
 import yaml
 
-from jujuclient import Environment as Client
-
 log = logging.getLogger("juju.slayer")
 
 
@@ -30,48 +28,32 @@ class Environment(object):
         try:
             return subprocess.check_output(args, env=env, stderr=stderr)
         except subprocess.CalledProcessError, e:
+            import pdb; pdb.set_trace()
             log.error(
                 "Failed to run command %s\n%s",
                 ' '.join(args), e.output)
             raise
 
-    @property
-    def jenv_path(self):
-        return os.path.join(
-            self.config.juju_home, "environments",
-            "%s.jenv" % self.config.get_env_name())
-
-    @property
-    def state_servers(self):
-        if not os.path.exists(self.jenv_path):
-            return ()
-        with open(self.jenv_path) as fh:
-            data = yaml.safe_load(fh.read())
-            if not data:
-                return ()
-            return data['state-servers']
-
     def status(self):
         return yaml.safe_load(self._run(['status']))
-
-    def connect(self):
-        servers = self.state_servers
-        if not servers:
-            raise ValueError("Environment not bootstrapped")
-        url = "wss://%s" % servers[0]
-        with open(self.jenv_path) as fh:
-            data = yaml.safe_load(fh.read())
-            user, password = data['user'], data['password']
-        env = Environment(url)
-        env.login(password, user="user-%s" % user)
-        return env
 
     def is_running(self):
         """Try to connect the api server websocket to see if env is running.
         """
-        url = self.state_servers[0]
-        host, port = url.split(":")
-        conn = httplib.HTTPSConnection(host, port=port, timeout=1.2)
+        name = self.config.get_env_name()
+        jenv = os.path.join(
+            self.config.juju_home, "environments", "%s.jenv" % name)
+        if not os.path.exists(jenv):
+            return False
+        with open(jenv) as fh:
+            data = yaml.safe_load(fh.read())
+            if not data:
+                return False
+            conf = data.get('bootstrap-config')
+            if not conf['type'] in ('manual', 'null'):
+                return False
+        conn = httplib.HTTPSConnection(
+            conf['bootstrap-host'], port=17070, timeout=3)
         try:
             conn.request("GET", "/")
             return True
@@ -87,7 +69,7 @@ class Environment(object):
         return self._run(cmd)
 
     def destroy_environment(self):
-        return self._run(['destroy-environment', "-y",
+        return self._run(['destroy-environment', "-y", "--force",
                           self.config.get_env_name()])
 
     def bootstrap(self):

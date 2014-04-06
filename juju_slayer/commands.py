@@ -21,11 +21,15 @@ class BaseCommand(object):
         self.runner = Runner()
 
     def solve_constraints(self):
-        size, region = solve_constraints(self.config.constraints)
-        return IMAGE_MAP[self.config.series], size, region
+        params = solve_constraints(self.config.constraints)
+        params['os_code'] = IMAGE_MAP[self.config.series]
+        params['domain'] = self.config.domain
+        params['hourly'] = True
+        params['nic_speed'] = 100
+        return params
 
     def get_slayer_ssh_keys(self):
-        return [k['id'] for k in self.provider.get_ssh_keys()]
+        return [k.id for k in self.provider.get_ssh_keys()]
 
     def check_preconditions(self):
         """Check for provider ssh key, and configured environments.yaml.
@@ -69,18 +73,17 @@ class Bootstrap(BaseCommand):
     - environment provider type is null
     - bootstrap-host must be null
     - at least one ssh key must exist.
-    - ? existing digital ocean with matching env name does not exist.
+    - ? existing softlayer with matching env name does not exist.
     """
     def run(self):
         keys = self.check_preconditions()
-        image, size, region = self.solve_constraints()
+        params = self.solve_constraints()
         log.info("Launching bootstrap host")
-        params = dict(
-            name="%s-0" % self.config.get_env_name(), image_id=image,
-            size_id=size, region_id=region, ssh_key_ids=keys)
 
-        op = ops.MachineAdd(
-            self.provider, self.env, params, series=self.config.series)
+        params['ssh_keys'] = keys
+        params['hostname'] = '%s-0' % self.config.get_env_name()
+
+        op = ops.MachineAdd(self.provider, self.env, params)
         instance = op.run()
 
         log.info("Bootstrapping environment")
@@ -103,15 +106,15 @@ class AddMachine(BaseCommand):
 
     def run(self):
         keys = self.check_preconditions()
-        image, size, region = self.solve_constraints()
+        params = self.solve_constraints()
         log.info("Launching %d instances", self.config.num_machines)
 
-        template = dict(
-            image_id=image, size_id=size, region_id=region, ssh_key_ids=keys)
+        params['ssh_keys'] = keys
+        template = dict(params)
 
         for n in range(self.config.num_machines):
             params = dict(template)
-            params['name'] = "%s-%s" % (
+            params['hostname'] = "%s-%s" % (
                 self.config.get_env_name(), uuid.uuid4().hex)
             self.runner.queue_op(
                 ops.MachineRegister(
@@ -141,8 +144,14 @@ class TerminateMachine(BaseCommand):
         remove = []
         for m in machines:
             if remove_machines(m):
+                if machines[m].get('life', '') == 'dead':
+                    continue
                 remove.append(
-                    {'address': machines[m]['dns-name'],
+                    # Juju does a reverse ip lookup to dns name which softlayer
+                    # has mapped to 198.23.106.29-static.reverse.softlayer.com
+                    # alternatively we need to query public ip address for each
+                    # machine from dns.
+                    {'address': machines[m]['dns-name'].split('-')[0],
                      'instance_id': machines[m]['instance-id'],
                      'machine_id': m})
 
@@ -191,13 +200,15 @@ class DestroyEnvironment(TerminateMachine):
         # sadness, machines are marked dead, but juju is async to
         # reality. either sleep (racy) or retry loop, 10s seems to
         # plenty of time.
-        time.sleep(10)
+
+        # Update: We forcefuly terminate the environment anyways.
+        time.sleep(2)
         log.info("Destroying environment")
         self.env.destroy_environment()
 
         # Remove the state server.
         bootstrap_host = env_status.get(
-            'machines', {}).get('0', {}).get('dns-name')
+            'machines', {}).get('0', {}).get('dns-name').split('-')[0]
         instance_id = instance_map.get(bootstrap_host)
         if instance_id:
             log.info("Terminating state server")

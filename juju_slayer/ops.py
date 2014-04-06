@@ -31,7 +31,22 @@ class MachineAdd(MachineOp):
         self.provider.wait_on(instance)
         instance = self.provider.get_instance(instance.id)
         self.verify_ssh(instance)
+        # Sigh.. install curl
+        if self.params.get('os_code', '') == 'UBUNTU_12_64':
+            log.debug("Updating instance %s" % instance.name)
+            self.update_image(instance)
         return instance
+
+    def update_image(self, instance):
+        """Workaround for SoftLayer precise image.
+
+        The minimal install is missing things needed for juju, like curl.
+        """
+        t = time.time()
+        ssh.update_instance(instance.ip_address)
+        log.debug(
+            "Update precise instance %s complete in %0.2f seconds",
+            instance.ip_address, time.time() - t)
 
     def verify_ssh(self, instance):
         """Workaround for manual provisioning and ssh availability.
