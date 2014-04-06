@@ -49,6 +49,10 @@ class Config(object):
         return "juju.ubuntu"
 
     @property
+    def image(self):
+        return None
+
+    @property
     def constraints(self):
         return self.options.constraints
 

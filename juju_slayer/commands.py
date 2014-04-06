@@ -1,7 +1,7 @@
 import logging
-import time
 import uuid
 import yaml
+import socket
 
 from juju_slayer.constraints import IMAGE_MAP, solve_constraints
 from juju_slayer.exceptions import ConfigError, PrecheckError
@@ -22,10 +22,13 @@ class BaseCommand(object):
 
     def solve_constraints(self):
         params = solve_constraints(self.config.constraints)
-        params['os_code'] = IMAGE_MAP[self.config.series]
+        if self.config.image is not None:
+            params['image_id'] = self.config.image
+        else:
+            params['os_code'] = IMAGE_MAP[self.config.series]
         params['domain'] = self.config.domain
         params['hourly'] = True
-        params['nic_speed'] = 100
+        params['nic_speed'] = 100  # Highest speed on the free side.
         return params
 
     def get_slayer_ssh_keys(self):
@@ -148,10 +151,11 @@ class TerminateMachine(BaseCommand):
                     continue
                 remove.append(
                     # Juju does a reverse ip lookup to dns name which softlayer
-                    # has mapped to 198.23.106.29-static.reverse.softlayer.com
-                    # alternatively we need to query public ip address for each
-                    # machine from dns.
-                    {'address': machines[m]['dns-name'].split('-')[0],
+                    # has mapped to 198.23.106.29-static.reverse.softlayer.com.
+                    # An account may also have this mapped to a custom domain
+                    # so we always resolve to ip address as we map to provider
+                    # instances by ip address.
+                    {'address': socket.gethostbyname(machines[m]['dns-name']),
                      'instance_id': machines[m]['instance-id'],
                      'machine_id': m})
 
@@ -197,19 +201,16 @@ class DestroyEnvironment(TerminateMachine):
         env_status, instance_map = self._terminate_machines(
             state_service_filter)
 
-        # sadness, machines are marked dead, but juju is async to
-        # reality. either sleep (racy) or retry loop, 10s seems to
-        # plenty of time.
-
-        # Update: We forcefuly terminate the environment anyways.
-        time.sleep(2)
+        # We forcefuly terminate the environment now, the machines are
+        # already dead or dying.
         log.info("Destroying environment")
         self.env.destroy_environment()
 
         # Remove the state server.
         bootstrap_host = env_status.get(
-            'machines', {}).get('0', {}).get('dns-name').split('-')[0]
-        instance_id = instance_map.get(bootstrap_host)
+            'machines', {}).get('0', {}).get('dns-name')
+        # See comment in terminate machine command re resolve
+        instance_id = instance_map.get(socket.gethostbyname(bootstrap_host))
         if instance_id:
             log.info("Terminating state server")
             self.provider.terminate_instance(instance_id)

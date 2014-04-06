@@ -37,9 +37,10 @@ class MachineAdd(MachineOp):
         return instance
 
     def update_image(self, instance):
-        """Workaround for SoftLayer precise image.
+        """Workaround for juju manual provider not installings all of its deps.
 
-        The minimal install is missing things needed for juju, like curl.
+        The SoftLayer precise image used by this plugin is very minimal and its
+        missing fairly basic things that juju needs like curl.
         """
         t = time.time()
         ssh.update_instance(instance.ip_address)
