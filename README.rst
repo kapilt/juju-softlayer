@@ -57,7 +57,7 @@ SoftLayer API Keys
 A SoftLayer account is a pre-requisite, If you don't have a
 Softlayer account you can sign up `here`_.
 
-Credentials for the digital ocean api can be obtained from your account
+Credentials for the softlayer api can be obtained from your account
 dashboard at https://manage.softlayer.com/Administrative/apiKeychain
 
 The credentials can be provided to the plugin via env variable or via the `sl`
