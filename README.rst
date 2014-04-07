@@ -6,13 +6,11 @@ Juju SoftLayer Provider
 
 
 This package provides a cli plugin for juju that allows for automated
-provisioning of machines on softlayer. I like to call it slayer :-)
+provisioning of virtual/cloud machines on softlayer. 
 
 Softlayer is premium hosting provider offering both bare metal and xen
 based cloud instances with a myriad of configuration options across
-multiple data center with monthly and hourly billing. Due to the length
-of time it takes to provision bare metal machines (3-4 hrs) this plugin
-only supports cloud instances.
+multiple data center with monthly and hourly billing.
 
 Juju provides for workloads management and orchestration using a
 collection of workloads definitions (charms) that can be assembled
